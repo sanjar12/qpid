@@ -5,8 +5,8 @@ from proton import Message
 from proton.handlers import MessagingHandler
 from proton.reactor import Container
 
-# --- Configuration ---
-BROKER_URL = "localhost:5672"
+
+BROKER_URL = "localhost:5671"
 MANAGEMENT_NODE_ADDRESS = "qmf.default.direct/broker"
 
 class QmfManager(MessagingHandler):
@@ -25,7 +25,6 @@ class QmfManager(MessagingHandler):
         self._receiver = event.container.create_receiver(self._connection, None, dynamic=True)
 
     def on_link_opened(self, event):
-        # Once the reply-to link is open, we can send the request
         if event.receiver == self._receiver and not self._request_sent:
             self._send_create_request()
             self._request_sent = True
@@ -40,7 +39,7 @@ class QmfManager(MessagingHandler):
         
         msg = Message(
             reply_to=reply_to_address,
-            application_properties=request_props,
+            properties=request_props,
             body=self.exchange_properties
         )
 
@@ -48,8 +47,8 @@ class QmfManager(MessagingHandler):
         self._sender.send(msg)
 
     def on_message(self, event):
-        reply_props = event.message.application_properties
-        if reply_props.get('qmf.opcode') == '_exception':
+        reply_props = event.message.properties
+        if reply_props and reply_props.get('qmf.opcode') == '_exception':
             print("\n[ERROR] Broker returned an exception. Exchange creation failed.")
             print(f"Details: {event.message.body}")
         else:
@@ -60,6 +59,7 @@ class QmfManager(MessagingHandler):
         print(f"[ERROR] Transport error: {event.transport.condition}")
         if self._connection:
             self._connection.close()
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     properties_to_create = {
         "name": exchange_name,
         "type": exchange_type,
-        "durable": True  # Creating durable exchanges by default
+        "durable": True
     }
 
     try:
