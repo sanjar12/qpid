@@ -5,8 +5,7 @@ from proton import Message
 from proton.handlers import MessagingHandler
 from proton.reactor import Container
 
-# --- Configuration ---
-BROKER_URL = "localhost:5672"
+BROKER_URL = "localhost:5671"
 MANAGEMENT_NODE_ADDRESS = "qmf.default.direct/broker"
 
 class QmfManager(MessagingHandler):
@@ -32,7 +31,6 @@ class QmfManager(MessagingHandler):
     def _send_bind_request(self):
         reply_to_address = self._receiver.remote_source.address
 
-        # For a 'bind' command, we call a method on the broker object
         request_props = {
             'qmf.opcode': '_method',
         }
@@ -44,7 +42,7 @@ class QmfManager(MessagingHandler):
 
         msg = Message(
             reply_to=reply_to_address,
-            application_properties=request_props,
+            properties=request_props,
             body=request_body
         )
 
@@ -52,8 +50,8 @@ class QmfManager(MessagingHandler):
         self._sender.send(msg)
 
     def on_message(self, event):
-        reply_props = event.message.application_properties
-        if reply_props.get('qmf.opcode') == '_exception':
+        reply_props = event.message.properties
+        if reply_props and reply_props.get('qmf.opcode') == '_exception':
             print("\n[ERROR] Broker returned an exception. Bind operation failed.")
             print(f"Details: {event.message.body}")
             print("\nHint: Make sure both the exchange and the queue already exist.")
@@ -66,10 +64,11 @@ class QmfManager(MessagingHandler):
         if self._connection:
             self._connection.close()
 
+# --- Main execution ---
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: python3 bind_queue.py <exchange-name> <queue-name> <binding-key>")
-        print("Example: python3 bind_queue.py my-app-exchange my-app-queue my.routing.key")
+        print("Example: python3 bind_queue.py s1 s2 mykey")
         sys.exit(1)
 
     exchange_name = sys.argv[1]
